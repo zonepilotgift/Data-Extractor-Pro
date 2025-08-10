@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Advanced Data Extractor</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Add Tesseract.js for OCR -->
+    <script src="https://unpkg.com/tesseract.js@4.1.1/dist/tesseract.min.js"></script>
+    <!-- Add pdf.js for PDF support -->
+    <script src="https://mozilla.github.io/pdf.js/build/pdf.min.js"></script>
+    <!-- Add Chart.js for analytics dashboard -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔍 Advanced Data Extractor</h1>
+            <p>Extract data from text, files, images, PDFs</p>
+            <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle dark mode" id="themeToggle">🌙</button>
+        </header>
+
+        <div class="main-content">
+            <div class="input-section">
+                <div class="input-tabs" role="tablist">
+                    <button class="tab-btn active" onclick="showInputMethod('text')" role="tab" aria-selected="true" aria-controls="text-input">📝 Text</button>
+                    <button class="tab-btn" onclick="showInputMethod('file')" role="tab" aria-selected="false" aria-controls="file-input">📁 File</button>
+                    <button class="tab-btn" onclick="showInputMethod('image')" role="tab" aria-selected="false" aria-controls="image-input">📸 Image</button>
+                </div>
+
+                <!-- Text Input -->
+                <div id="text-input" class="input-method active" role="region" aria-labelledby="text-tab">
+                    <label for="documentText" class="visually-hidden">Enter text to extract data</label>
+                    <textarea id="documentText" placeholder="Paste text here..."></textarea>
+                    <label for="realtimeExtraction" class="realtime-label">
+                        <input type="checkbox" id="realtimeExtraction"> Real-time extraction
+                    </label>
+                </div>
+
+                <!-- File Upload -->
+                <div id="file-input" class="input-method" role="region" aria-labelledby="file-tab">
+                    <div class="file-upload" onclick="document.getElementById('fileInput').click()" aria-label="Upload files">
+                        <div class="upload-icon">📁</div>
+                        <p>Tap or drag & drop files</p>
+                        <p class="supported-formats">Supports: TXT, CSV, JSON, PDF (max 10MB)</p>
+                        <input type="file" id="fileInput" multiple accept=".txt,.csv,.json,.pdf" aria-label="File input">
+                    </div>
+                </div>
+
+                <!-- Image Upload -->
+                <div id="image-input" class="input-method" role="region" aria-labelledby="image-tab">
+                    <div class="file-upload" onclick="document.getElementById('imageInput').click()" aria-label="Upload images">
+                        <div class="upload-icon">📸</div>
+                        <p>Tap or drag & drop images</p>
+                        <p class="supported-formats">Supports: JPG, PNG, GIF, BMP, TIFF (max 10MB)</p>
+                        <input type="file" id="imageInput" multiple accept="image/*" aria-label="Image input">
+                    </div>
+                    <div id="imagePreview" class="image-preview"></div>
+                    <div id="ocrProgress" class="ocr-progress"></div>
+                </div>
+
+                <!-- Custom Pattern -->
+                <div class="custom-pattern">
+                    <h3>🎯 Custom Pattern</h3>
+                    <label for="customPattern" class="visually-hidden">Enter regex pattern</label>
+                    <input type="text" id="customPattern" placeholder="e.g., \d{3}-\d{2}-\d{4} (SSN)">
+                    <select onchange="document.getElementById('customPattern').value = this.value">
+                        <option value="">Example Patterns</option>
+                        <option value="\d{3}-\d{2}-\d{4}">SSN (xxx-xx-xxxx)</option>
+                        <option value="[A-Z0-9]{5}-[0-9]{4}">ZIP+4 (xxxxx-xxxx)</option>
+                        <option value="\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b">Email</option>
+                    </select>
+                    <button onclick="extractCustom()">Extract</button>
+                </div>
+            </div>
+
+            <div class="buttons">
+                <button onclick="extractEmails()">📧 Emails</button>
+                <button onclick="extractUrls()">🔗 URLs</button>
+                <button onclick="extractPhones()">📱 Phones</button>
+                <button onclick="extractDates()">📅 Dates</button>
+                <button onclick="extractNumbers()">🔢 Numbers</button>
+                <button onclick="extractAllText()">📄 Text</button>
+                <button onclick="extractAll()">🎯 All</button>
+                <button onclick="clearAll()">🗑️ Clear</button>
+                <button onclick="showAnalytics()">📈 Analytics</button>
+            </div>
+
+            <div class="results-section">
+                <div class="results-header">
+                    <h2>📊 Results</h2>
+                    <div class="export-controls">
+                        <button onclick="exportResults('json')">📄 JSON</button>
+                        <button onclick="exportResults('csv')">📊 CSV</button>
+                        <button onclick="exportResults('txt')">📝 TXT</button>
+                        <button onclick="copyAllResults()">📋 Copy</button>
+                    </div>
+                </div>
+
+                <div class="results-grid">
+                    <!-- All Text Results -->
+                    <div class="result-box full-width" id="allTextResults">
+                        <h3>📄 Extracted Text <span class="count" id="allTextCount">0</span></h3>
+                        <div class="text-controls">
+                            <button onclick="copyToClipboard(extractedData.allText || '')">📋 Copy</button>
+                            <button onclick="downloadText()">💾 Download</button>
+                            <button onclick="toggleTextWrap()">🔄 Wrap</button>
+                        </div>
+                        <div class="results-content" id="allTextContent">
+                            <div class="text-display" id="textDisplay" role="region" aria-label="Extracted text"></div>
+                        </div>
+                    </div>
+
+                    <div class="result-box" id="emailResults">
+                        <h3>📧 Emails <span class="count" id="emailCount">0</span></h3>
+                        <div class="results-content" id="emailContent"></div>
+                    </div>
+                    
+                    <div class="result-box" id="urlResults">
+                        <h3>🔗 URLs <span class="count" id="urlCount">0</span></h3>
+                        <div class="results-content" id="urlContent"></div>
+                    </div>
+                    
+                    <div class="result-box" id="phoneResults">
+                        <h3>📱 Phones <span class="count" id="phoneCount">0</span></h3>
+                        <div class="results-content" id="phoneContent"></div>
+                    </div>
+                    
+                    <div class="result-box" id="dateResults">
+                        <h3>📅 Dates <span class="count" id="dateCount">0</span></h3>
+                        <div class="results-content" id="dateContent"></div>
+                    </div>
+                    
+                    <div class="result-box" id="numberResults">
+                        <h3>🔢 Numbers <span class="count" id="numberCount">0</span></h3>
+                        <div class="results-content" id="numberContent"></div>
+                    </div>
+
+                    <div class="result-box" id="customResults">
+                        <h3>⚙️ Custom <span class="count" id="customCount">0</span></h3>
+                        <div class="results-content" id="customContent"></div>
+                    </div>
+
+                    <!-- Analytics Dashboard -->
+                    <div class="result-box full-width" id="analyticsDashboard" style="display: none;">
+                        <h3>📈 Analytics</h3>
+                        <canvas id="analyticsChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading">
+        <div class="spinner"></div>
+        <p id="loadingText">Processing...</p>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
